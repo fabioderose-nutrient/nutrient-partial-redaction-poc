@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Partial Smart Redaction</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="6" y="10" width="7" height="4" rx="0.5" fill="currentColor" stroke="none"/><path d="M15 12h3"/></svg>
+      </span>
+      <div>
+        <h1>Partial Smart Redaction</h1>
+        <p class="brand-sub">Mask card numbers, keep the last 4 digits</p>
+      </div>
+    </div>
+    <div class="topbar-meta">
+      <span class="pill" id="engine-pill" title="Redaction engine">GdPicture.NET</span>
+      <span class="pill pill-quiet">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        On-premises, no cloud call
+      </span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" aria-label="Settings">
+      <section class="panel">
+        <h2 class="panel-title">1. Document</h2>
+        <div id="sample-list" class="sample-list" role="radiogroup" aria-label="Sample documents"></div>
+        <label class="upload" id="upload-zone">
+          <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.bmp,.docx,.doc,.xlsx,.eml,.msg" />
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+          <span id="upload-label"><strong>Upload your own file</strong><br /><small>PDF, scan, image or Office document</small></span>
+        </label>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">2. Data types</h2>
+          <div class="segmented" role="group" aria-label="Presets">
+            <button type="button" data-preset="cards">Cards only</button>
+            <button type="button" data-preset="all" class="active">All</button>
+          </div>
+        </div>
+        <div id="type-list" class="type-list"></div>
+      </section>
+
+      <button type="button" id="run" class="btn-primary">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
+        Redact document
+      </button>
+      <p class="hint">Both outputs come from the same GdPicture smart redaction detection: <b>Full</b> is today's behaviour, <b>Partial</b> keeps the last logical group of each value.</p>
+    </aside>
+
+    <main class="main">
+      <div class="summary" id="summary" hidden>
+        <div>
+          <p class="summary-title" id="summary-title"></p>
+          <p class="summary-sub" id="summary-sub"></p>
+        </div>
+        <div class="stats" id="stats"></div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button role="tab" class="tab active" data-tab="compare" aria-selected="true">Comparison</button>
+        <button role="tab" class="tab" data-tab="values" aria-selected="false">Detected values <span class="count" id="values-count">0</span></button>
+        <button role="tab" class="tab" data-tab="code" aria-selected="false">Code</button>
+        <div class="tab-tools" id="compare-tools">
+          <div class="chips" role="group" aria-label="Visible columns">
+            <button type="button" class="chip active" data-col="original">Original</button>
+            <button type="button" class="chip active" data-col="full">Full</button>
+            <button type="button" class="chip active" data-col="partial">Partial</button>
+          </div>
+          <div class="zoom" role="group" aria-label="Zoom">
+            <button type="button" id="zoom-out" aria-label="Zoom out">&minus;</button>
+            <span id="zoom-label">100%</span>
+            <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+          </div>
+        </div>
+      </div>
+
+      <section class="tab-panel" id="tab-compare">
+        <div class="empty" id="empty">
+          <p>Pick a sample or upload a document, then click <b>Redact document</b>.</p>
+        </div>
+        <div class="compare" id="compare" hidden></div>
+      </section>
+
+      <section class="tab-panel" id="tab-values" hidden>
+        <div class="table-wrap">
+          <table class="values">
+            <thead>
+              <tr><th>Data type</th><th>Page</th><th>Original value</th><th>Partial redaction</th><th>Text left in the redacted PDF</th></tr>
+            </thead>
+            <tbody id="values-body"></tbody>
+          </table>
+        </div>
+        <p class="footnote">The last column is read back from the output PDF with GdPicture text extraction: masked characters are removed from the file, not just covered by a black box.</p>
+      </section>
+
+      <section class="tab-panel" id="tab-code" hidden>
+        <div class="code-grid">
+          <div class="code-card">
+            <h3>One option on the existing SmartRedaction call</h3>
+            <pre><code>using GdPicture14;
+
+using var pdf = new GdPicturePDF();
+pdf.LoadFromFile("statement.pdf");
+
+var options = new GdPicturePDF.SmartRedactionOptions
+{
+    RedactCreditCardNumbers = true,
+    <mark>PartialRedaction = true</mark>,   // keep the last 4 digits
+};
+
+pdf.SmartRedaction(options);
+pdf.SaveToFile("statement-redacted.pdf");</code></pre>
+          </div>
+          <div class="code-card">
+            <h3>Behaviour per data type</h3>
+            <table class="rules" id="rules"></table>
+            <h3 class="mt">About this demo</h3>
+            <p id="engine-note"></p>
+          </div>
+        </div>
+      </section>
+
+      <div class="loading" id="loading" hidden>
+        <div class="spinner" aria-hidden="true"></div>
+        <p>Detecting and redacting with GdPicture&hellip;</p>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="alert" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
